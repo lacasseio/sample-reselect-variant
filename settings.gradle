@@ -1,0 +1,4 @@
+rootProject.name = 'sample-reselect-variants'
+include('app')
+include('lib1', 'lib2')
+include('product')

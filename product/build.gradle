@@ -1,0 +1,40 @@
+configurations {
+    productRelease {
+        canBeResolved = false
+        canBeConsumed = false
+        description = 'Product dependencies for the release variant.'
+    }
+    runtimeBinaries {
+        canBeResolved = true
+        canBeConsumed = false
+        extendsFrom(configurations.productRelease)
+        description = 'Runtime binaries of the release product.'
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.NATIVE_RUNTIME))
+            attribute(CppBinary.OPTIMIZED_ATTRIBUTE, true)
+        }
+
+        resolutionStrategy {
+            capabilitiesResolution.all {
+                // In this case, we select the second candidate as the "overriding" libraries are specified after the main dependencies
+                select(candidates.last())
+            }
+        }
+    }
+}
+
+dependencies {
+    productRelease project(':app')
+    productRelease(project(':lib1')) {
+        attributes {
+            attribute(CppBinary.OPTIMIZED_ATTRIBUTE, false)
+        }
+    }
+}
+
+tasks.register('verify') {
+	dependsOn(configurations.runtimeBinaries)
+	doLast {
+		configurations.runtimeBinaries.each { println it }
+	}
+}

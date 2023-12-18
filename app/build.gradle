@@ -1,0 +1,10 @@
+plugins {
+    id 'cpp-application'
+    id 'cpp-unit-test'
+}
+
+application {
+    dependencies {
+        implementation project(':lib1')
+    }
+}
