@@ -1,4 +1,19 @@
+pluginManagement {
+    includeBuild 'debuggable-product-plugin'
+}
+
+plugins {
+    id 'com.example.debuggable-product'
+}
+
 rootProject.name = 'sample-reselect-variants'
+
+includeBuild 'composite-build'
+
 include('app')
-include('lib1', 'lib2')
+include('lib1', 'lib2', 'lib3')
 include('product')
+
+gradle.allprojects {
+    group = 'com.example'
+}

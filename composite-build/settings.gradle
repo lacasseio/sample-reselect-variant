@@ -1,0 +1,14 @@
+pluginManagement {
+    includeBuild '../debuggable-product-plugin'
+}
+
+plugins {
+    id 'com.example.debuggable-product'
+}
+
+include 'lib4'
+
+gradle.allprojects {
+    group = 'com.example'
+}
+

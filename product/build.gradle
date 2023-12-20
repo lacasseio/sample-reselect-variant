@@ -13,23 +13,12 @@ configurations {
             attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.NATIVE_RUNTIME))
             attribute(CppBinary.OPTIMIZED_ATTRIBUTE, true)
         }
-
-        resolutionStrategy {
-            capabilitiesResolution.all {
-                // In this case, we select the second candidate as the "overriding" libraries are specified after the main dependencies
-                select(candidates.last())
-            }
-        }
     }
 }
 
 dependencies {
     productRelease project(':app')
-    productRelease(project(':lib1')) {
-        attributes {
-            attribute(CppBinary.OPTIMIZED_ATTRIBUTE, false)
-        }
-    }
+    productRelease project(':lib3')
 }
 
 tasks.register('verify') {

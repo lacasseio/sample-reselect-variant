@@ -1,44 +1,40 @@
 # Sample: Reselect variant in dependency tree
 
-Gradle resolve all dependencies for a configuration as a single tree.
-Once all dependencies found, Gradle perform a conflict resolution.
-On version conflict, Gradle selects the highest.
-On capability conflict, Gradle fails.
-By default, all outgoing configurations has the same capability.
-Thus, all native variants (i.e. debug/release) are incompatible with each other as they have the same capability.
-Gradle doesn't prevent you from declaring dependencies to multiple variant, but incompatible variants will require a conflict resolution.
+As opposed to the previous version of this sample (see Git history), the sample will rewrite the dependencies of each project to avoid rebuilding the same library twice (debug and release).
+To accomplish this, we need a global plugin that understand the request (e.g. `-Pdbg`) and perform the modification on affected projects.
+The global plugin is `com.example.debuggable-product` and is applied to the `settings.gradle`, aka global to a project.
+The plugin will search all project for any C++ components and perform the dependency modification required.
 
-In this sample, we show how to declare a "main" dependency to the release variant of the application.
-Left unchanged, all release binaires would be resolved thanks to transitivity (e.g. `app`, `lib1`, and `lib2`).
-We can specify an additional dependency to `lib1` by using the _debug_ attribute.
-In this case, both the release and debug variant of `lib1` are in conflict because of their capability.
-Via the capability resolution strategy, we can select the debug variant only for that variant.
+We no longer need to create a conflict as the dependency that we resolves already depends on the right, debug vs release, dependencies.
+Note that this sample ignores the case where a transitive dependency of an external dependency is required to be switched to a debug binary.
+In this case, you would need to use the trick from the previous version of this sample.
 
 ## Demonstration
 
 ```
-$ ./gradlew :product:verify --console=verbose
-> Task :lib2:compileReleaseCpp
-> Task :lib1:compileReleaseCpp
+$ ./gradlew :product:verify -Pdbg=com.example:lib1,com.example:lib4
+> Task :composite-build:lib4:compileDebugCpp
+> Task :composite-build:lib4:linkDebug
 > Task :lib1:compileDebugCpp
-> Task :lib2:compileDebugCpp
+> Task :lib2:compileReleaseCpp
+> Task :lib3:compileReleaseCpp
 > Task :lib2:linkRelease
-> Task :lib2:linkDebug
 > Task :lib2:stripSymbolsRelease
-> Task :lib1:linkDebug
-> Task :lib1:linkRelease
-> Task :lib1:stripSymbolsRelease
 > Task :app:compileReleaseCpp
+> Task :lib1:linkDebug
+> Task :lib3:linkRelease
 > Task :app:linkRelease
+> Task :lib3:stripSymbolsRelease
 > Task :app:stripSymbolsRelease
 
 > Task :product:verify
 ./app/build/exe/main/release/stripped/app
+./lib3/build/lib/main/release/stripped/liblib3.dylib
 ./lib1/build/lib/main/debug/liblib1.dylib
+./composite-build/lib4/build/lib/main/debug/liblib4.dylib
 ./lib2/build/lib/main/release/stripped/liblib2.dylib
 
-BUILD SUCCESSFUL
+BUILD SUCCESSFUL in 2s
 ```
 
-Note that both `lib1` debug and release variant are built as the dependency tree for `app`'s configuration are not affected.
-Thus, `app` builds against the `lib1` release variant but `product` resolve the `lib1` debug variant.
+Note that only the debug variant of `lib1` and `lib4` are built.

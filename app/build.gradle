@@ -6,5 +6,6 @@ plugins {
 application {
     dependencies {
         implementation project(':lib1')
+        implementation 'com.example:lib4'
     }
 }
