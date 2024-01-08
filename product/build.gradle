@@ -3,6 +3,7 @@ configurations {
         canBeResolved = false
         canBeConsumed = false
         description = 'Product dependencies for the release variant.'
+        dependencies.configureEach(DebuggableProductPlugin.redirection(project, debuggable))
     }
     runtimeBinaries {
         canBeResolved = true

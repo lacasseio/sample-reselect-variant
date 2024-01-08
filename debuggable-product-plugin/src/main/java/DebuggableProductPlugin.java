@@ -30,6 +30,7 @@ public /*final*/ abstract class DebuggableProductPlugin implements Plugin<Settin
                     .map(DebuggableProductPlugin::toCommaSeparatedList)
                     .map(DebuggableProductPlugin::toCoordinates)
                     .getOrElse(Collections.emptySet());
+            project.getExtensions().add("debuggable", debuggable);
 
             project.getComponents().withType(CppComponent.class).configureEach(component -> {
                 component.getImplementationDependencies().getDependencies()
@@ -55,7 +56,7 @@ public /*final*/ abstract class DebuggableProductPlugin implements Plugin<Settin
     }
 
     // Mutate dependency according to the debuggable coordinates
-    private static Action<Dependency> redirection(Project project, Set<DebuggableCoordinate> coordinates) {
+    public static Action<Dependency> redirection(Project project, Set<DebuggableCoordinate> coordinates) {
         return new Action<>() {
             private boolean toRelease = coordinates.contains(new DebuggableCoordinate(project.getGroup().toString(), project.getName()));
 
