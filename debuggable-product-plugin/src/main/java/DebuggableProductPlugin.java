@@ -1,7 +1,9 @@
 import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.attributes.AttributeContainer;
@@ -11,6 +13,7 @@ import org.gradle.api.logging.Logging;
 import org.gradle.language.cpp.CppBinary;
 import org.gradle.language.cpp.CppComponent;
 import org.gradle.language.cpp.CppLibrary;
+import org.gradle.nativeplatform.test.cpp.CppTestExecutable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,15 +36,27 @@ public /*final*/ abstract class DebuggableProductPlugin implements Plugin<Settin
             project.getExtensions().add("debuggable", debuggable);
 
             project.getComponents().withType(CppComponent.class).configureEach(component -> {
-                component.getImplementationDependencies().getDependencies()
-                        .configureEach(redirection(project, debuggable));
+                component.getImplementationDependencies().withDependencies(redirect(debuggable));
+                component.getBinaries().whenElementFinalized(binary -> {
+                    ifDebuggable(project, () -> {
+                        final Configuration linkConfiguration = project.getConfigurations().getByName("nativeLink" + capitalize(qualifyingName(binary)));
+                        linkConfiguration.attributes(forRelease());
+                    });
+                });
             });
 
             project.getComponents().withType(CppLibrary.class).configureEach(component -> {
-                component.getApiDependencies().getDependencies()
-                        .configureEach(redirection(project, debuggable));
+                component.getApiDependencies().withDependencies(redirect(debuggable));
             });
         });
+    }
+
+    private static void ifDebuggable(Project project, Runnable action) {
+        @SuppressWarnings("unchecked")
+        final Set<DebuggableCoordinate> debuggable = (Set<DebuggableCoordinate>) project.getExtensions().getByName("debuggable");
+        if (debuggable.contains(new DebuggableCoordinate(project.getGroup().toString(), project.getName()))) {
+            action.run();
+        }
     }
 
     private static Iterable<String> toCommaSeparatedList(String v) {
@@ -56,30 +71,48 @@ public /*final*/ abstract class DebuggableProductPlugin implements Plugin<Settin
     }
 
     // Mutate dependency according to the debuggable coordinates
-    public static Action<Dependency> redirection(Project project, Set<DebuggableCoordinate> coordinates) {
+    public static Action<DependencySet> redirect(Set<DebuggableCoordinate> coordinates) {
         return new Action<>() {
-            private boolean toRelease = coordinates.contains(new DebuggableCoordinate(project.getGroup().toString(), project.getName()));
-
             @Override
-            public void execute(Dependency dependency) {
-                if (coordinates.contains(DebuggableCoordinate.ofDependency(dependency))) {
-                    LOGGER.info(String.format("Redirect dependency %s to debug variant", dependency));
-                    ((ModuleDependency) dependency).attributes(this::forDebug);
-                } else if (toRelease) {
-                    LOGGER.info(String.format("Redirect dependency %s to release variant", dependency));
-                    ((ModuleDependency) dependency).attributes(this::forRelease);
-                }
+            public void execute(DependencySet dependencies) {
+                dependencies.all(dependency -> {
+                    if (coordinates.contains(DebuggableCoordinate.ofDependency(dependency))) {
+                        LOGGER.info(String.format("Redirect dependency %s to debug variant", dependency));
+                        ((ModuleDependency) dependency).attributes(this::forDebug);
+                    }
+                });
             }
 
             private void forDebug(AttributeContainer attributes) {
                 attributes.attribute(CppBinary.OPTIMIZED_ATTRIBUTE, false);
             }
-
-            private void forRelease(AttributeContainer attributes) {
-                attributes.attribute(CppBinary.OPTIMIZED_ATTRIBUTE, true);
-            }
         };
     }
+
+    private static Action<AttributeContainer> forRelease() {
+        return attributes -> attributes.attribute(CppBinary.OPTIMIZED_ATTRIBUTE, true);
+    }
+
+    //region Names
+    private static String qualifyingName(CppBinary binary) {
+        // The binary name follow the pattern <componentName><variantName>[Executable]
+        String result = binary.getName();
+        if (result.startsWith("main")) {
+            result = result.substring("main".length());
+        }
+
+        // CppTestExecutable
+        if (binary instanceof CppTestExecutable) {
+            result = result.substring(0, binary.getName().length() - "Executable".length());
+        }
+
+        return result;
+    }
+
+    private static String capitalize(String s) {
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+    //endregion
 
     // Represent coordinate to debug
     private static final class DebuggableCoordinate {

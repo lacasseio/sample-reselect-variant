@@ -13,6 +13,7 @@ includeBuild 'composite-build'
 include('app')
 include('lib1', 'lib2', 'lib3')
 include('product')
+include('testProj1', 'testProj2', 'testProj3', 'testProj4')
 
 gradle.allprojects {
     group = 'com.example'
